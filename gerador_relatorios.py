@@ -4,6 +4,8 @@ from datetime import datetime
 import glob
 import sys
 import io
+import re
+import unicodedata
 from typing import List, Any
 
 # Forçar UTF-8 no terminal se possível
@@ -14,10 +16,10 @@ except Exception:
     pass
 
 def analisar_campanha(row: pd.Series) -> str:
-    nome = row['Nome da campanha']
-    gasto = row['Valor usado (BRL)']
-    impressoes = row['Impressões']
-    alcance = row['Alcance']
+    nome = row.get('Nome da campanha', 'Campanha')
+    gasto = row.get('Valor usado (BRL)', 0)
+    impressoes = row.get('Impressões', 0)
+    alcance = row.get('Alcance', 0)
     
     # KPIs comuns
     compras = row.get('Compras', 0)
@@ -30,9 +32,18 @@ def analisar_campanha(row: pd.Series) -> str:
     
     # Lógica de Classificação
     tipo = "Outros"
-    if any(x in nome.lower() for x in ['tráfego', 'perfil', 'institucional', 'aquisição', 'topo']):
+    nome_lower = str(nome).lower()
+    funil_sinais = [
+        row.get('Visualizações do conteúdo', 0),
+        row.get('Adições ao carrinho', 0),
+        row.get('Finalizações de compra iniciadas', 0),
+        row.get('Valor de conversão de adições ao carrinho', 0)
+    ]
+    if compras > 0 or receita > 0 or any(v > 0 for v in funil_sinais):
+        tipo = "Vendas"
+    elif any(x in nome_lower for x in ['tráfego', 'perfil', 'institucional', 'aquisição', 'topo']):
         tipo = "Aquisição"
-    elif any(x in nome.lower() for x in ['vendas', 'conversão', 'fundo', 'cardápio']):
+    elif any(x in nome_lower for x in ['vendas', 'conversão', 'fundo', 'cardápio']):
         tipo = "Vendas"
 
     if tipo == "Aquisição":
@@ -112,11 +123,24 @@ def analisar_campanha(row: pd.Series) -> str:
                 texto.append(f"A campanha ainda está em fase de aprendizado ou não houve atribuição direta de vendas neste período.")
     
     else:
-        # Padrão genérico
         texto.append(f"📊 {nome}")
         texto.append(f"• Investimento: R$ {gasto:,.2f}")
-        texto.append(f"• Resultados: {int(resultados)}")
-        texto.append(f"• ROAS: {(receita / gasto if gasto > 0 else 0):.2f}")
+        if alcance > 0:
+            texto.append(f"• Pessoas alcançadas: {int(alcance):,}".replace(',', '.'))
+        if impressoes > 0:
+            texto.append(f"• Impressões: {int(impressoes):,}".replace(',', '.'))
+        if resultados > 0:
+            texto.append(f"• Resultados: {int(resultados)}")
+        if cliques > 0:
+            texto.append(f"• Cliques: {int(cliques)}")
+        if custo_por_resultado > 0:
+            texto.append(f"• Custo por resultado: R$ {custo_por_resultado:,.2f}")
+        if compras > 0:
+            texto.append(f"• Compras: {int(compras)}")
+        if receita > 0:
+            texto.append(f"• Receita: R$ {receita:,.2f}")
+        if gasto > 0 and receita > 0:
+            texto.append(f"• ROAS: {(receita / gasto):.2f}")
 
     return "\n".join(texto)
 
@@ -136,10 +160,89 @@ def obter_nome_cliente(caminho_arquivo: str) -> str:
         return " ".join(nome_cliente).strip()
     return "CLIENTE"
 
+def _normalize_text(value: str) -> str:
+    value = value.strip().lower()
+    value = unicodedata.normalize('NFKD', value)
+    value = ''.join(c for c in value if not unicodedata.combining(c))
+    value = value.replace('_', ' ').replace('-', ' ')
+    value = re.sub(r'[^a-z0-9 ]+', ' ', value)
+    value = re.sub(r'\s+', ' ', value).strip()
+    return value
+
+def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
+    normalized_to_original = {}
+    for col in df.columns:
+        key = _normalize_text(str(col))
+        if key and key not in normalized_to_original:
+            normalized_to_original[key] = col
+    variants = {
+        'Nome da campanha': ['nome da campanha', 'campanha', 'campaign name', 'nome campanha', 'ad name', 'campaign'],
+        'Valor usado (BRL)': ['valor usado (brl)', 'valor gasto (brl)', 'amount spent (brl)', 'valor gasto', 'gasto', 'spent', 'amount spent'],
+        'Impressões': ['impressões', 'impressoes', 'impressions'],
+        'Alcance': ['alcance', 'reach', 'people reached'],
+        'Compras': ['compras', 'purchases', 'website purchases', 'on facebook purchases', 'app purchases', 'purchases (all)'],
+        'Valor de conversão da compra': ['valor de conversao da compra', 'purchase conversion value', 'valor de conversao da compra (brl)', 'purchase conversion value (brl)', 'website purchase conversion value', 'purchases conversion value'],
+        'Cliques': ['cliques', 'link clicks', 'cliques no link', 'clicks', 'inline link clicks', 'clicks all', 'all clicks'],
+        'Resultados': ['resultados', 'results', 'result'],
+        'Custo por resultados': ['custo por resultados', 'cost per result', 'cost per results'],
+        'Visualizações do conteúdo': ['visualizacoes do conteudo', 'visualizações do conteúdo', 'content views', 'landing page views', 'view content', 'content view'],
+        'Adições ao carrinho': ['adicoes ao carrinho', 'adições ao carrinho', 'add to cart', 'adds to cart', 'add to cart (website)', 'adds to cart (website)'],
+        'Valor de conversão de adições ao carrinho': ['valor de conversao de adicoes ao carrinho', 'add to cart conversion value', 'valor de conversao de adicoes ao carrinho (brl)', 'add to cart conversion value (brl)'],
+        'Finalizações de compra iniciadas': ['finalizacoes de compra iniciadas', 'checkouts initiated', 'initiated checkouts', 'initiate checkout'],
+        'Início dos relatórios': ['inicio dos relatorios', 'início dos relatórios', 'reporting starts', 'reporting start', 'inicio relatorios', 'reporting start date'],
+        'Término dos relatórios': ['termino dos relatorios', 'término dos relatórios', 'reporting ends', 'reporting end', 'termino relatorios', 'reporting end date']
+    }
+    renames = {}
+    for canonical, opts in variants.items():
+        for opt in opts:
+            key = _normalize_text(opt)
+            if key in normalized_to_original:
+                renames[normalized_to_original[key]] = canonical
+                break
+        if canonical not in renames.values():
+            for col_key, original in normalized_to_original.items():
+                for opt in opts:
+                    opt_key = _normalize_text(opt)
+                    if opt_key and opt_key in col_key:
+                        renames[original] = canonical
+                        break
+                if original in renames:
+                    break
+    keyword_rules = {
+        'Nome da campanha': [['campaign'], ['campanha'], ['ad name']],
+        'Valor usado (BRL)': [['amount', 'spent'], ['valor', 'gasto'], ['spend'], ['spent']],
+        'Impressões': [['impress'], ['impression']],
+        'Alcance': [['reach'], ['alcance']],
+        'Compras': [['purchase'], ['compra']],
+        'Valor de conversão da compra': [['purchase', 'value'], ['conversion', 'value', 'purchase'], ['valor', 'conversao', 'compra']],
+        'Cliques': [['click'], ['clique']],
+        'Resultados': [['result'], ['resultado']],
+        'Custo por resultados': [['cost', 'result'], ['custo', 'resultado']],
+        'Visualizações do conteúdo': [['content', 'view'], ['landing', 'page', 'view'], ['visualizacao', 'conteudo']],
+        'Adições ao carrinho': [['add', 'cart'], ['adicao', 'carrinho']],
+        'Valor de conversão de adições ao carrinho': [['add', 'cart', 'value'], ['conversion', 'value', 'cart'], ['valor', 'conversao', 'adicao', 'carrinho']],
+        'Finalizações de compra iniciadas': [['checkout'], ['finalizacao', 'compra']],
+        'Início dos relatórios': [['reporting', 'start'], ['inicio', 'relatorio']],
+        'Término dos relatórios': [['reporting', 'end'], ['termino', 'relatorio']]
+    }
+    for canonical, keyword_sets in keyword_rules.items():
+        if canonical in renames.values():
+            continue
+        for col_key, original in normalized_to_original.items():
+            for keywords in keyword_sets:
+                if all(k in col_key for k in keywords):
+                    renames[original] = canonical
+                    break
+            if original in renames:
+                break
+    if renames:
+        df = df.rename(columns=renames)
+    return df
+
 def gerar_texto_relatorio(df: pd.DataFrame, nome_cliente: str) -> str:
-    # Verificar se é um arquivo válido de colunas esperadas
+    df = _normalize_columns(df.copy())
     if 'Nome da campanha' not in df.columns:
-        return "Erro: O arquivo não parece ser um relatório de campanhas (Coluna 'Nome da campanha' ausente)."
+        df['Nome da campanha'] = 'Campanha'
 
     # Limpar colunas numéricas
     cols_to_numeric = ['Valor usado (BRL)', 'Valor de conversão da compra', 'Compras', 'Impressões', 'Alcance', 'Resultados', 'Custo por resultados', 'Visualizações do conteúdo', 'Adições ao carrinho', 'Valor de conversão de adições ao carrinho', 'Finalizações de compra iniciadas']
