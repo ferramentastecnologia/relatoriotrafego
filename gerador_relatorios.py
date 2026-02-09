@@ -64,8 +64,12 @@ def analisar_campanha(row: pd.Series) -> str:
             texto.append(f"• Valor rastreado: R$ {receita:,.2f}")
         
         texto.append(f"\n📌 O ponto mais importante aqui:")
-        texto.append(f"Mesmo não sendo uma campanha focada em venda direta, ela influencia fortemente os pedidos que acontecem depois.")
-        texto.append(f"Na prática, ela faz com que o cliente veja a marca hoje e volte a comprar dias depois, algo muito comum no delivery.")
+        texto.append(f"Essa campanha não tem objetivo principal de venda direta, e sim reconhecimento de marca e aquisição de público na região.")
+        texto.append(f"Ela influencia pedidos que acontecem dias depois, algo muito comum no delivery.")
+        if receita > 0:
+            texto.append(f"Como houve venda atribuída, o resultado é lucro adicional para a marca.")
+        elif roas := (receita / gasto if gasto > 0 else 0):
+            texto.append(f"Mesmo sendo topo de funil, já trouxe ROAS de {roas:.2f}, o que é excelente para reconhecimento.")
 
     elif tipo == "Vendas":
         roas = receita / gasto if gasto > 0 else 0
@@ -112,6 +116,10 @@ def analisar_campanha(row: pd.Series) -> str:
         # Narrativa
         if roas > 0:
             texto.append(f"\n📌 Traduzindo isso:")
+            if roas >= 6:
+                texto.append(f"ROAS acima de 6 é considerado um ótimo resultado para campanha de cardápio.")
+            else:
+                texto.append(f"ROAS abaixo de 6 indica espaço para otimização em criativos, público e oferta.")
             texto.append(f"Cada R$ 1 investido em anúncios retornou mais de R$ {int(roas)} em vendas.")
             if ticket_medio > 0:
                 texto.append(f"O ticket médio das compras foi de R$ {ticket_medio:,.2f}.")
