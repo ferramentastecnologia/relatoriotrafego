@@ -24,9 +24,13 @@ def analisar_campanha(row: pd.Series) -> str:
     # KPIs comuns
     compras = row.get('Compras', 0)
     receita = row.get('Valor de conversão da compra', 0)
-    cliques = row.get('Cliques', 0) # Se houver coluna de cliques, senao usar Resultados como proxy se for tráfego
+    cliques = row.get('Cliques', 0)
     resultados = row.get('Resultados', 0)
     custo_por_resultado = row.get('Custo por resultados', 0)
+    visitas_perfil = row.get('Visitas ao perfil', 0)
+    if visitas_perfil <= 0 and resultados > 0:
+        visitas_perfil = resultados
+    custo_visita = custo_por_resultado if custo_por_resultado > 0 else (gasto / visitas_perfil if visitas_perfil > 0 else 0)
     
     texto = []
     
@@ -47,16 +51,13 @@ def analisar_campanha(row: pd.Series) -> str:
         tipo = "Vendas"
 
     if tipo == "Aquisição":
-        visitas = int(resultados) # Assumindo que Resultado = Visita ao Perfil para campanhas de Tráfego
-        custo_visita = custo_por_resultado
-        
         texto.append(f"📊 Campanha de Aquisição (Topo de Funil – Marca e Público Novo)")
         texto.append(f"({nome})\n")
         texto.append(f"Essa campanha tem como objetivo principal fazer a marca aparecer para mais pessoas da região, gerar lembrança de marca e trazer público novo para o perfil.\n")
         texto.append(f"• Investimento: R$ {gasto:,.2f}")
         texto.append(f"• Pessoas alcançadas: {int(alcance):,}".replace(',', '.'))
         texto.append(f"• Impressões: {int(impressoes):,}".replace(',', '.'))
-        texto.append(f"• Visitas ao perfil: {visitas}")
+        texto.append(f"• Visitas ao perfil: {int(visitas_perfil)}")
         texto.append(f"• Custo por visita: R$ {custo_visita:,.2f}")
         # Tentar achar compras rastreadas mesmo em campanha de tráfego
         if compras > 0:
@@ -101,6 +102,9 @@ def analisar_campanha(row: pd.Series) -> str:
             texto.append(f"• 💳 Finalizações de compra iniciadas: {int(checkout_iniciado)}")
             
         texto.append(f"• ✅ Compras realizadas: {int(compras)}")
+        if 'trafego' in nome_lower or 'perfil' in nome_lower:
+            texto.append(f"• Visitas ao perfil: {int(visitas_perfil)}")
+            texto.append(f"• Custo por visita: R$ {custo_visita:,.2f}")
         
         if receita > 0:
             texto.append(f"• 💰 Faturamento rastreado: R$ {receita:,.2f}")
@@ -197,6 +201,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         'Valor de conversão da compra': ['valor de conversao da compra', 'purchase conversion value', 'valor de conversao da compra (brl)', 'purchase conversion value (brl)', 'website purchase conversion value', 'purchases conversion value'],
         'Cliques': ['cliques', 'link clicks', 'cliques no link', 'clicks', 'inline link clicks', 'clicks all', 'all clicks'],
         'Resultados': ['resultados', 'results', 'result'],
+        'Visitas ao perfil': ['visitas ao perfil', 'profile visits', 'visitas do perfil', 'profile visit', 'visitas no perfil'],
         'Custo por resultados': ['custo por resultados', 'cost per result', 'cost per results'],
         'Visualizações do conteúdo': ['visualizacoes do conteudo', 'visualizações do conteúdo', 'content views', 'landing page views', 'view content', 'content view'],
         'Adições ao carrinho': ['adicoes ao carrinho', 'adições ao carrinho', 'add to cart', 'adds to cart', 'add to cart (website)', 'adds to cart (website)'],
@@ -230,6 +235,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         'Valor de conversão da compra': [['purchase', 'value'], ['conversion', 'value', 'purchase'], ['valor', 'conversao', 'compra']],
         'Cliques': [['click'], ['clique']],
         'Resultados': [['result'], ['resultado']],
+        'Visitas ao perfil': [['profile', 'visit'], ['visita', 'perfil']],
         'Custo por resultados': [['cost', 'result'], ['custo', 'resultado']],
         'Visualizações do conteúdo': [['content', 'view'], ['landing', 'page', 'view'], ['visualizacao', 'conteudo']],
         'Adições ao carrinho': [['add', 'cart'], ['adicao', 'carrinho']],
@@ -258,7 +264,7 @@ def gerar_texto_relatorio(df: pd.DataFrame, nome_cliente: str) -> str:
         df['Nome da campanha'] = 'Campanha'
 
     # Limpar colunas numéricas
-    cols_to_numeric = ['Valor usado (BRL)', 'Valor de conversão da compra', 'Compras', 'Impressões', 'Alcance', 'Resultados', 'Custo por resultados', 'Visualizações do conteúdo', 'Adições ao carrinho', 'Valor de conversão de adições ao carrinho', 'Finalizações de compra iniciadas']
+    cols_to_numeric = ['Valor usado (BRL)', 'Valor de conversão da compra', 'Compras', 'Impressões', 'Alcance', 'Resultados', 'Visitas ao perfil', 'Custo por resultados', 'Visualizações do conteúdo', 'Adições ao carrinho', 'Valor de conversão de adições ao carrinho', 'Finalizações de compra iniciadas']
     for col in cols_to_numeric:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
