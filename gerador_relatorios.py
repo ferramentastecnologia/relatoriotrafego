@@ -116,13 +116,18 @@ def analisar_campanha(row: pd.Series) -> str:
         # Narrativa
         if roas > 0:
             texto.append(f"\n📌 Traduzindo isso:")
-            if roas >= 6:
-                texto.append(f"ROAS acima de 6 é considerado um ótimo resultado para campanha de cardápio.")
+            if 'trafego' in nome_lower or 'perfil' in nome_lower:
+                texto.append(f"Campanha voltada para aquisição de público e reconhecimento de marca na região, além de novos seguidores para a página.")
+                if compras > 0 or receita > 0:
+                    texto.append(f"Obs: resultados em venda através dessa campanha são lucro na performance de tráfego.")
             else:
-                texto.append(f"ROAS abaixo de 6 indica espaço para otimização em criativos, público e oferta.")
-            texto.append(f"Cada R$ 1 investido em anúncios retornou mais de R$ {int(roas)} em vendas.")
-            if ticket_medio > 0:
-                texto.append(f"O ticket médio das compras foi de R$ {ticket_medio:,.2f}.")
+                if roas >= 6:
+                    texto.append(f"ROAS acima de 6 é considerado um ótimo resultado para campanha de cardápio.")
+                else:
+                    texto.append(f"ROAS abaixo de 6 indica espaço para otimização em criativos, público e oferta.")
+                texto.append(f"Cada R$ 1 investido em anúncios retornou mais de R$ {int(roas)} em vendas.")
+                if ticket_medio > 0:
+                    texto.append(f"O ticket médio das compras foi de R$ {ticket_medio:,.2f}.")
         else:
             texto.append(f"\n📌 Análise:")
             if cliques > 0:
