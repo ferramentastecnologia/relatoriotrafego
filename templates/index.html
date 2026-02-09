@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Relatórios Premium</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📊 Gerador de Relatórios</h1>
+            <p>Arraste seu CSV e deixe a mágica acontecer.</p>
+        </header>
+
+        <div class="upload-area" id="drop-zone">
+            <div class="icon">📁</div>
+            <p>Arraste o arquivo CSV aqui ou clique para selecionar</p>
+            <input type="file" id="file-input" accept=".csv" hidden>
+        </div>
+
+        <div id="loading" class="hidden">
+            <div class="spinner"></div>
+            <p>Analisando dados e gerando insights...</p>
+        </div>
+
+        <div id="result-area" class="hidden">
+            <div class="result-header">
+                <h2 id="client-name">Cliente: ...</h2>
+                <button id="download-btn" class="btn">Baixar Relatório</button>
+                <button id="copy-btn" class="btn secondary">Copiar Texto</button>
+            </div>
+            <pre id="report-content"></pre>
+        </div>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const loading = document.getElementById('loading');
+        const resultArea = document.getElementById('result-area');
+        const reportContent = document.getElementById('report-content');
+        const clientName = document.getElementById('client-name');
+        const downloadBtn = document.getElementById('download-btn');
+        const copyBtn = document.getElementById('copy-btn');
+
+        let currentReportText = '';
+        let currentFileName = '';
+
+        // Drag and Drop Events
+        dropZone.addEventListener('click', () => fileInput.click());
+        
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length) handleFile(files[0]);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (fileInput.files.length) handleFile(fileInput.files[0]);
+        });
+
+        function handleFile(file) {
+            if (!file.name.endsWith('.csv')) {
+                alert('Por favor, envie um arquivo CSV.');
+                return;
+            }
+
+            uploadFile(file);
+        }
+
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            dropZone.classList.add('hidden');
+            loading.classList.remove('hidden');
+            resultArea.classList.add('hidden');
+
+            try {
+                const response = await fetch('/gerar', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    currentReportText = data.relatorio;
+                    currentFileName = `Relatorio_${data.cliente.replace(/ /g, '_')}.txt`;
+                    
+                    reportContent.textContent = data.relatorio;
+                    clientName.textContent = `Cliente: ${data.cliente}`;
+                    
+                    loading.classList.add('hidden');
+                    resultArea.classList.remove('hidden');
+                    dropZone.classList.remove('hidden'); // Allow new upload
+                } else {
+                    alert('Erro: ' + data.error);
+                    loading.classList.add('hidden');
+                    dropZone.classList.remove('hidden');
+                }
+            } catch (error) {
+                alert('Erro na comunicação com o servidor.');
+                console.error(error);
+                loading.classList.add('hidden');
+                dropZone.classList.remove('hidden');
+            }
+        }
+
+        // Download
+        downloadBtn.addEventListener('click', () => {
+            const blob = new Blob([currentReportText], { type: 'text/plain' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = currentFileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        });
+
+        // Copy
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(currentReportText).then(() => {
+                const originalText = copyBtn.innerText;
+                copyBtn.innerText = 'Copiado!';
+                setTimeout(() => copyBtn.innerText = originalText, 2000);
+            });
+        });
+    </script>
+</body>
+</html>
