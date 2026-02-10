@@ -28,9 +28,7 @@ def analisar_campanha(row: pd.Series) -> str:
     resultados = row.get('Resultados', 0)
     custo_por_resultado = row.get('Custo por resultados', 0)
     visitas_perfil = row.get('Visitas ao perfil', 0)
-    if visitas_perfil <= 0 and resultados > 0:
-        visitas_perfil = resultados
-    custo_visita = custo_por_resultado if custo_por_resultado > 0 else (gasto / visitas_perfil if visitas_perfil > 0 else 0)
+    custo_visita = custo_por_resultado if (custo_por_resultado > 0 and visitas_perfil > 0) else (gasto / visitas_perfil if visitas_perfil > 0 else 0)
     
     texto = []
     
@@ -57,8 +55,9 @@ def analisar_campanha(row: pd.Series) -> str:
         texto.append(f"• Investimento: R$ {gasto:,.2f}")
         texto.append(f"• Pessoas alcançadas: {int(alcance):,}".replace(',', '.'))
         texto.append(f"• Impressões: {int(impressoes):,}".replace(',', '.'))
-        texto.append(f"• Visitas ao perfil: {int(visitas_perfil)}")
-        texto.append(f"• Custo por visita: R$ {custo_visita:,.2f}")
+        if visitas_perfil > 0:
+            texto.append(f"• Visitas ao perfil: {int(visitas_perfil)}")
+            texto.append(f"• Custo por visita: R$ {custo_visita:,.2f}")
         # Tentar achar compras rastreadas mesmo em campanha de tráfego
         if compras > 0:
             texto.append(f"• Compras rastreadas: {int(compras)}")
@@ -102,7 +101,7 @@ def analisar_campanha(row: pd.Series) -> str:
             texto.append(f"• 💳 Finalizações de compra iniciadas: {int(checkout_iniciado)}")
             
         texto.append(f"• ✅ Compras realizadas: {int(compras)}")
-        if 'trafego' in nome_lower or 'perfil' in nome_lower:
+        if visitas_perfil > 0:
             texto.append(f"• Visitas ao perfil: {int(visitas_perfil)}")
             texto.append(f"• Custo por visita: R$ {custo_visita:,.2f}")
         
@@ -202,6 +201,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         'Cliques': ['cliques', 'link clicks', 'cliques no link', 'clicks', 'inline link clicks', 'clicks all', 'all clicks'],
         'Resultados': ['resultados', 'results', 'result'],
         'Visitas ao perfil': ['visitas ao perfil', 'profile visits', 'visitas do perfil', 'profile visit', 'visitas no perfil'],
+        'Indicador de resultados': ['indicador de resultados', 'result indicator', 'results indicator'],
         'Custo por resultados': ['custo por resultados', 'cost per result', 'cost per results'],
         'Visualizações do conteúdo': ['visualizacoes do conteudo', 'visualizações do conteúdo', 'content views', 'landing page views', 'view content', 'content view'],
         'Adições ao carrinho': ['adicoes ao carrinho', 'adições ao carrinho', 'add to cart', 'adds to cart', 'add to cart (website)', 'adds to cart (website)'],
@@ -236,6 +236,7 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         'Cliques': [['click'], ['clique']],
         'Resultados': [['result'], ['resultado']],
         'Visitas ao perfil': [['profile', 'visit'], ['visita', 'perfil']],
+        'Indicador de resultados': [['result', 'indicator'], ['indicador', 'resultado']],
         'Custo por resultados': [['cost', 'result'], ['custo', 'resultado']],
         'Visualizações do conteúdo': [['content', 'view'], ['landing', 'page', 'view'], ['visualizacao', 'conteudo']],
         'Adições ao carrinho': [['add', 'cart'], ['adicao', 'carrinho']],
@@ -258,6 +259,172 @@ def _normalize_columns(df: pd.DataFrame) -> pd.DataFrame:
         df = df.rename(columns=renames)
     return df
 
+def _safe_div(n: float, d: float) -> float:
+    return n / d if d else 0
+
+import json
+
+def carregar_estrategia_cliente():
+    caminho_estrategia = os.path.join(os.path.dirname(__file__), 'mdf_passo_fundo_strategy.json')
+    if os.path.exists(caminho_estrategia):
+        try:
+            with open(caminho_estrategia, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except:
+            return None
+    return None
+
+def gerar_inteligencia_gastronomia(df: pd.DataFrame) -> str:
+    estrategia = carregar_estrategia_cliente()
+    
+    gasto = df['Valor usado (BRL)'].sum() if 'Valor usado (BRL)' in df.columns else 0
+    receita = df['Valor de conversão da compra'].sum() if 'Valor de conversão da compra' in df.columns else 0
+    compras = df['Compras'].sum() if 'Compras' in df.columns else 0
+    impressoes = df['Impressões'].sum() if 'Impressões' in df.columns else 0
+    alcance = df['Alcance'].sum() if 'Alcance' in df.columns else 0
+    resultados = df['Resultados'].sum() if 'Resultados' in df.columns else 0
+    visitas_perfil = df['Visitas ao perfil'].sum() if 'Visitas ao perfil' in df.columns else 0
+    cliques = df['Cliques'].sum() if 'Cliques' in df.columns else 0
+    visualizacoes = df['Visualizações do conteúdo'].sum() if 'Visualizações do conteúdo' in df.columns else 0
+    add_carrinho = df['Adições ao carrinho'].sum() if 'Adições ao carrinho' in df.columns else 0
+    checkout = df['Finalizações de compra iniciadas'].sum() if 'Finalizações de compra iniciadas' in df.columns else 0
+
+    roas = _safe_div(receita, gasto)
+    cpa = _safe_div(gasto, compras)
+    cpr = _safe_div(gasto, resultados)
+    cpm = _safe_div(gasto * 1000, impressoes)
+    cpc = _safe_div(gasto, cliques)
+    taxa_visita = _safe_div(visitas_perfil, alcance)
+    freq = _safe_div(impressoes, alcance)
+    ticket_medio = _safe_div(receita, compras)
+    taxa_add_carrinho = _safe_div(add_carrinho, visualizacoes)
+    taxa_checkout = _safe_div(checkout, add_carrinho)
+    taxa_compra = _safe_div(compras, checkout)
+
+    linhas = []
+    linhas.append("INTELIGÊNCIA DE TRÁFEGO - GASTRONOMIA")
+    linhas.append("Resumo executivo:")
+    linhas.append(f"• Investimento total: R$ {gasto:,.2f}")
+    if impressoes > 0:
+        linhas.append(f"• Impressões: {int(impressoes):,}".replace(',', '.'))
+    if alcance > 0:
+        linhas.append(f"• Alcance: {int(alcance):,}".replace(',', '.'))
+    if resultados > 0:
+        linhas.append(f"• Resultados: {int(resultados):,}".replace(',', '.'))
+    if visitas_perfil > 0:
+        linhas.append(f"• Visitas ao perfil: {int(visitas_perfil):,}".replace(',', '.'))
+        linhas.append(f"• Custo por visita: R$ {_safe_div(gasto, visitas_perfil):,.2f}")
+    if compras > 0:
+        linhas.append(f"• Compras: {int(compras):,}".replace(',', '.'))
+        linhas.append(f"• CPA: R$ {cpa:,.2f}")
+    if receita > 0:
+        linhas.append(f"• Receita rastreada: R$ {receita:,.2f}")
+    if ticket_medio > 0:
+            linhas.append(f"• Ticket médio: R$ {ticket_medio:,.2f}")
+        if roas > 0:
+            linhas.append(f"• ROAS: {roas:.2f}")
+        
+        # Análise Don Chevico Style - Impacto Real do Tráfego
+        # Estimativa: assumindo que 50% das vendas vêm de tráfego se não tivermos dados de orgânico
+        # Se tivermos dados reais de faturamento total (imput manual ou config), usaríamos aqui.
+        # Como só temos o CSV do Ads, vamos destacar o que É DO ADS.
+        linhas.append(f"\n--- IMPACTO REAL DO TRÁFEGO (Don Chevico Analysis) ---")
+        linhas.append(f"Faturamento rastreado via anúncios: R$ {receita:,.2f}")
+        if receita > 0 and gasto > 0:
+            lucro_bruto_ads = receita - gasto
+            linhas.append(f"Lucro bruto sobre investimento (Ads): R$ {lucro_bruto_ads:,.2f}")
+            if lucro_bruto_ads > 0:
+                linhas.append(f"Prova matemática: O tráfego pagou a si mesmo e gerou caixa.")
+            else:
+                linhas.append(f"Atenção: O retorno direto ainda não cobriu o investimento. Foco em LTV e branding.")
+        
+        if compras > 0:
+            linhas.append(f"Base de clientes ativos (vendas): {int(compras)} pedidos gerados.")
+            linhas.append(f"Isso significa {int(compras)} experiências de marca entregues na casa do cliente.")
+            
+        if visitas_perfil > 0:
+             linhas.append(f"Novos interessados (Visitas ao perfil): {int(visitas_perfil)}")
+             linhas.append(f"Potencial de clientes futuros (Público Frio) que conheceram a marca.")
+
+        if impressoes > 0:
+            linhas.append(f"• CPM: R$ {cpm:,.2f}")
+    if cliques > 0:
+        linhas.append(f"• CPC: R$ {cpc:,.2f}")
+
+    diagnosticos = []
+    if gasto > 0 and compras <= 0:
+        diagnosticos.append("Sem compras atribuídas no período; revisar oferta, criativos e público.")
+    if visualizacoes > 0 and add_carrinho <= 0:
+        diagnosticos.append("Visualizações sem adição ao carrinho; oferta e preço podem estar desalinhados.")
+    if add_carrinho > 0 and checkout <= 0:
+        diagnosticos.append("Adições ao carrinho sem checkout; revisar fricção do funil.")
+    if checkout > 0 and compras <= 0:
+        diagnosticos.append("Checkouts iniciados sem compra; revisar meios de pagamento e taxa de conversão.")
+    if roas > 0 and roas < 2:
+        diagnosticos.append("ROAS baixo para gastronomia; otimizar criativos, público e oferta.")
+    if freq > 3.5:
+        diagnosticos.append("Frequência alta; risco de fadiga criativa.")
+    if alcance > 0 and taxa_visita < 0.003 and resultados > 0:
+        diagnosticos.append("Baixa taxa de visita; mensagens e criativos podem não estar atraentes.")
+
+    if diagnosticos:
+        linhas.append("\nDiagnóstico:")
+        for d in diagnosticos[:6]:
+            linhas.append(f"• {d}")
+
+    if estrategia:
+        linhas.append("\n--- ESTRATÉGIA PERSONALIZADA (MDF - Passo Fundo) ---")
+        linhas.append("Baseada em análise de concorrentes locais (Somare, Didio's, Honshu, etc.)")
+        
+        sugestao = estrategia.get('estrategia_sugerida', {})
+        orcamento_meta = sugestao.get('orcamento_diario_total', 0)
+        
+        linhas.append(f"\nMeta de Investimento Diário: R$ {orcamento_meta:.2f}")
+        if gasto > 0:
+            dias_aprox = gasto / (gasto/len(df)) if len(df) > 0 else 1 # Estimativa grosseira se nao tiver dias
+            media_diaria = gasto / 7 # Assumindo semanal ou ajustar conforme dados reais de dias
+            # Melhor pegar datas
+            try:
+                dt_ini = pd.to_datetime(df['Início dos relatórios'].iloc[0])
+                dt_fim = pd.to_datetime(df['Término dos relatórios'].iloc[0])
+                dias = (dt_fim - dt_ini).days + 1
+                if dias > 0:
+                    media_diaria = gasto / dias
+                    linhas.append(f"Investimento Atual Diário (Média): R$ {media_diaria:.2f}")
+                    if media_diaria < orcamento_meta * 0.8:
+                        linhas.append(f"⚠️ Atenção: Você está investindo abaixo do planejado (R$ {orcamento_meta}).")
+                    elif media_diaria > orcamento_meta * 1.2:
+                        linhas.append(f"⚠️ Atenção: O investimento está acima da meta de R$ {orcamento_meta}.")
+            except:
+                pass
+
+        linhas.append("\nEstrutura Recomendada:")
+        for camp in sugestao.get('campanhas', []):
+            linhas.append(f"• {camp['nome']} (R$ {camp['orcamento_diario']:.2f}/dia)")
+            linhas.append(f"  Objetivo: {camp['objetivo']}")
+            linhas.append(f"  Criativos Sugeridos: {', '.join(camp['criativos'][:2])}")
+            
+    linhas.append("\n--- PRÓXIMOS PASSOS E CONCLUSÃO ESTRATÉGICA ---")
+    linhas.append("1. Manter Campanhas de Venda Direta: São o motor de faturamento (sustentação).")
+    linhas.append("2. Expandir Topo de Funil: Continuar trazendo gente nova (Visitas ao Perfil) para evitar saturação da base.")
+    linhas.append("3. Testar Novos Canais (Google Ads): Captar quem já busca por 'pizzaria' ou 'delivery' na região.")
+    linhas.append("4. Monitorar Recompra: O tráfego traz o cliente a primeira vez; o produto garante a volta.")
+    
+    linhas.append("\nAções recomendadas (Gerais):")
+    linhas.append("• Criativos com produto campeão, preço e tempo de entrega em destaque.")
+    linhas.append("• Ofertas com combo e frete grátis acima de um valor mínimo.")
+    linhas.append("• Campanhas por horário de pico com orçamento concentrado.")
+    linhas.append("• Remarketing de 7 a 14 dias com foco em quem visitou ou adicionou ao carrinho.")
+    linhas.append("• Segmentação por raio com exclusão de áreas de baixa conversão.")
+    if taxa_add_carrinho > 0 and taxa_add_carrinho < 0.03:
+        linhas.append("• Ajustar descrição do cardápio e reforçar benefícios no criativo.")
+    if taxa_checkout > 0 and taxa_checkout < 0.5:
+        linhas.append("• Revisar UX do checkout e incentivos para finalizar pedido.")
+    if taxa_compra > 0 and taxa_compra < 0.5:
+        linhas.append("• Testar cupom de primeira compra e prova social.")
+
+    return "\n".join(linhas)
+
 def gerar_texto_relatorio(df: pd.DataFrame, nome_cliente: str) -> str:
     df = _normalize_columns(df.copy())
     if 'Nome da campanha' not in df.columns:
@@ -268,6 +435,12 @@ def gerar_texto_relatorio(df: pd.DataFrame, nome_cliente: str) -> str:
     for col in cols_to_numeric:
         if col in df.columns:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
+    if 'Visitas ao perfil' not in df.columns:
+        df['Visitas ao perfil'] = 0
+    if 'Indicador de resultados' in df.columns and 'Resultados' in df.columns:
+        indicador = df['Indicador de resultados'].astype(str).str.lower()
+        mask_visitas = indicador.str.contains('profile') | indicador.str.contains('perfil') | indicador.str.contains('visita')
+        df.loc[mask_visitas & (df['Visitas ao perfil'] <= 0), 'Visitas ao perfil'] = df.loc[mask_visitas, 'Resultados']
     
     # Obter datas do período
     data_inicio = df['Início dos relatórios'].iloc[0] if 'Início dos relatórios' in df.columns else "N/A"
@@ -292,6 +465,8 @@ def gerar_texto_relatorio(df: pd.DataFrame, nome_cliente: str) -> str:
         bloco = analisar_campanha(row)
         relatorio_final.append(bloco)
         relatorio_final.append("\n" + "="*30 + "\n")
+
+    relatorio_final.append(gerar_inteligencia_gastronomia(df))
         
     return '\n'.join(relatorio_final)
 

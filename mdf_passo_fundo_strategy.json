@@ -1,0 +1,79 @@
+{
+    "origem_dados": "Análise de Mercado Real (Passo Fundo/RS) - Competidores Mapeados",
+    "cliente": {
+        "nome": "MDF - Passo Fundo",
+        "endereco": "Avenida Oeste, 3610 - Vila Agostinho Carrao, Passo Fundo - RS, 99025-604",
+        "segmentos": ["Pizzaria", "Hamburgueria", "Sushi", "Frango Frito"],
+        "raio_atuacao_km": 60
+    },
+    "concorrentes_mapeados_real": [
+        {
+            "nome": "Somare Pizzaria",
+            "segmento": "Pizzaria",
+            "estrategia_identificada": "Anúncio de Venda Direta (Combo Família) com preço explícito (De R$160 por R$129,90). Foco em entrega rápida e qualidade ('massa aberta na hora').",
+            "oferta_destaque": "Combo Especial: Pizza Grande + Brotinho Doce + Refri 2L + Maionese por R$ 129,90."
+        },
+        {
+            "nome": "Chico Churrascaria",
+            "segmento": "Churrascaria/Carnes",
+            "estrategia_identificada": "Apelo visual forte na Picanha e ambiente 'família-friendly' com Espaço Kids.",
+            "oferta_destaque": "Rodízio completo sem fim."
+        },
+        {
+            "nome": "Assados Ávila",
+            "segmento": "Frango",
+            "estrategia_identificada": "Praticidade para o fim de semana com preço ancorado (R$ 40,00).",
+            "oferta_destaque": "Frango assado com salada e farofa."
+        },
+        {
+            "nome": "Pod Poke",
+            "segmento": "Sushi/Poke",
+            "estrategia_identificada": "Personalização ('Monte do seu jeito') e foco em almoço saudável.",
+            "oferta_destaque": "Buffet livre ou Delivery personalizado."
+        }
+    ],
+    "estrategia_sugerida": {
+        "orcamento_diario_total": 40.00,
+        "campanhas": [
+            {
+                "nome": "Fundo de Funil - Oferta Irresistível (Delivery)",
+                "objetivo": "Vendas (WhatsApp/App)",
+                "orcamento_diario": 25.00,
+                "publico": "Raio 6km (Vila Agostinho Carrão + Centro). Excluir áreas industriais se houver.",
+                "formato": "Carrossel Dinâmico",
+                "criativos": [
+                    "Card 1 (Âncora de Preço): 'O jantar da família por R$ XX,90' (Benchmark: Assados Ávila)",
+                    "Card 2 (Combo Completo): 'Pizza G + Doce + Refri por R$ 129,90' (Estratégia Somare: Salgado + Doce + Bebida)",
+                    "Card 3 (Urgência): 'Entrega grátis hoje para Vila Agostinho e região'"
+                ]
+            },
+            {
+                "nome": "Meio de Funil - Food Porn & Bastidores",
+                "objetivo": "Engajamento (Instagram Reels)",
+                "orcamento_diario": 10.00,
+                "publico": "Interesses: Churrasco, Pizza, Ifood, Restaurantes (Passo Fundo)",
+                "formato": "Reels (Vídeo Vertical)",
+                "criativos": [
+                    "Vídeo: Close-up extremo do produto (Queijo, Molho, Corte da Carne). Sem locução, apenas som ambiente (ASMR).",
+                    "Vídeo: 'Como preparamos seu pedido' (Gera confiança e desejo)."
+                ]
+            },
+            {
+                "nome": "Topo de Funil - Localização & Marca",
+                "objetivo": "Alcance (Frequência 2x)",
+                "orcamento_diario": 5.00,
+                "publico": "Raio estendido 10km (Passo Fundo Geral)",
+                "formato": "Imagem Única (Banner)",
+                "criativos": [
+                    "Foto da Fachada/Equipe: 'Seu novo vizinho na Av. Oeste, 3610!'",
+                    "Prova Social: Repost de cliente elogiando (Print com foto do prato)."
+                ]
+            }
+        ]
+    },
+    "diretrizes_criativos_reais": {
+        "imagem": "Evite banco de imagem. Use fotos reais do balcão (estilo Assados Ávila). A imperfeição gera autenticidade.",
+        "video": "Vídeos curtos (15s). Mostre o 'bastidor' da cozinha (estilo Somare mostrando o buffet).",
+        "copy": "Estrutura Somare: 1. Gatilho (Do forno pra casa); 2. Qualidade (Massa aberta na hora); 3. Oferta (De X por Y); 4. CTA (Entrega rápida). Use emojis: 🍕🍫🥤🚀."
+    }
+}
