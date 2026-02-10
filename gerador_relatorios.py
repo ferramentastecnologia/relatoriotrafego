@@ -320,9 +320,9 @@ def gerar_inteligencia_gastronomia(df: pd.DataFrame) -> str:
     if receita > 0:
         linhas.append(f"• Receita rastreada: R$ {receita:,.2f}")
     if ticket_medio > 0:
-            linhas.append(f"• Ticket médio: R$ {ticket_medio:,.2f}")
-        if roas > 0:
-            linhas.append(f"• ROAS: {roas:.2f}")
+        linhas.append(f"• Ticket médio: R$ {ticket_medio:,.2f}")
+    if roas > 0:
+        linhas.append(f"• ROAS: {roas:.2f}")
         
         # Análise Don Chevico Style - Impacto Real do Tráfego
         # Estimativa: assumindo que 50% das vendas vêm de tráfego se não tivermos dados de orgânico
@@ -343,8 +343,8 @@ def gerar_inteligencia_gastronomia(df: pd.DataFrame) -> str:
             linhas.append(f"Isso significa {int(compras)} experiências de marca entregues na casa do cliente.")
             
         if visitas_perfil > 0:
-             linhas.append(f"Novos interessados (Visitas ao perfil): {int(visitas_perfil)}")
-             linhas.append(f"Potencial de clientes futuros (Público Frio) que conheceram a marca.")
+            linhas.append(f"Novos interessados (Visitas ao perfil): {int(visitas_perfil)}")
+            linhas.append(f"Potencial de clientes futuros (Público Frio) que conheceram a marca.")
 
         if impressoes > 0:
             linhas.append(f"• CPM: R$ {cpm:,.2f}")

@@ -2,8 +2,6 @@ from flask import Flask, render_template, request, jsonify
 import os
 import re
 from datetime import datetime
-import pandas as pd
-from gerador_relatorios import gerar_texto_relatorio, obter_nome_cliente
 
 app = Flask(__name__)
 if os.environ.get('VERCEL') == '1' or os.environ.get('VERCEL_ENV'):
@@ -21,6 +19,12 @@ def index():
 
 @app.route('/gerar', methods=['POST'])
 def gerar():
+    try:
+        import pandas as pd
+        from gerador_relatorios import gerar_texto_relatorio, obter_nome_cliente
+    except Exception as e:
+        return jsonify({'error': f'Falha ao carregar dependências: {str(e)}'}), 500
+
     if 'file' not in request.files:
         return jsonify({'error': 'Nenhum arquivo enviado'}), 400
     
